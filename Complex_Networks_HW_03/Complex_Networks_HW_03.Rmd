@@ -1,0 +1,118 @@
+---
+title: "Complex Networks HW 03"
+author: "Sarah Elghazoly"
+date: "4/26/2021"
+output: html_document
+---
+
+
+#### Fibration Symmetries in Networks
+
+This assignment uses the bacilus network to get the zscore and count of "n=0,l=1", “n = 0, l = 2” and “n = 0, l = 3” building blocks using the fibrationSymmetries package.
+
+```{r}
+# load necessary packages
+library(fibrationSymmetries)
+library(dplyr)
+library(igraph)
+library(knitr)
+```
+
+
+
+```{r}
+# load the network file
+
+bacilus <- read.csv("~/Spring 2021/Complex Networks/Bacilus.txt", sep = " ", header= F)
+
+head(bacilus)
+
+```
+
+
+
+
+
+```{r,warning=FALSE}
+
+runVec <- c("n = 0, l = 1", "n = 0, l = 2", "n = 0, l = 3")
+
+
+
+for(j in runVec){
+  buildingBlocks = get.building.blocks(raw_edges = bacilus, progressBar = F)
+  buildingBlocks = filter(buildingBlocks, nl == j)
+  realCount = nrow(buildingBlocks)
+
+  graph <- graph_from_edgelist(as.matrix(bacilus))
+
+  count = NULL
+  sampleSize = 100
+  for(i in 1:sampleSize) {
+    outDegrees <- degree(graph = graph, mode = "out", loops = T, normalized = FALSE)
+    outDegrees <- outDegrees[sample(vcount(graph))]
+  
+    inDegrees <- degree(graph = graph, mode = "in", loops = T, normalized = FALSE)
+    inDegrees <- inDegrees[sample(vcount(graph))]
+  
+    newGraph <- sample_degseq(out.deg = outDegrees, in.deg = inDegrees, method = "simple")
+    newEdges <- as.data.frame(as_edgelist(newGraph), stringsAsFactors = F)
+    newEdges[] <- apply(newEdges, 2, as.character)
+  
+    generatedBlocks = get.building.blocks(raw_edges = newEdges, progressBar = F)
+    generatedBlocks = filter(generatedBlocks, nl == j)
+    count = c(count, nrow(generatedBlocks))
+  }
+  
+  print(j)
+  print(count)
+  zscore = (realCount - mean(count)) / sd(count)
+  print(paste("Zscore", j, ":", zscore))
+}
+
+
+
+```
+
+
+#### Community Detection and Modularity:
+
+##### HW Exercises: 
+
+1. H/w Plot the modularity of Newman clusters of a scale-free network vs size of the network for sizes 10-1000 with the step of 10
+
+```{r}
+clusters_to_dataframe <- function(cluster_data) {
+  clusters_df = data.frame(Node = character(), ClusterId = numeric(), stringsAsFactors = F)
+  
+  for(i in 1:length(cluster_data)) {
+    newData = data.frame(Node = cluster_data[[i]], ClusterId = i, stringsAsFactors = F)
+    clusters_df = rbind(clusters_df, newData)
+  }
+  
+  clusters_df = arrange(clusters_df, Node)
+  
+  return(clusters_df)
+}
+```
+
+
+```{r}
+
+scaleList <- seq(10,1000,10)
+newmanMod <- c()
+
+for(i in scaleList){
+  graph <- sample_pa(i, directed = F)
+  
+  newman_clusters = clusters_to_dataframe(cluster_edge_betweenness(graph))
+  newmanModularity = modularity(graph, newman_clusters$ClusterId)
+  newmanMod <- c(newmanMod,newmanModularity)
+  
+}
+
+plot(scaleList, newmanMod, xlab = "scale", ylab = "Newman Modularity")
+
+```
+
+
